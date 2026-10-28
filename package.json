@@ -1,5 +1,6 @@
 {
   "name": "dotclaude",
+  "version": "0.2.0",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -8,9 +9,12 @@
   },
   "files": [
     "index.ts",
-    "template"
+    "dotclaude.config.json",
+    "template",
+    "vendor"
   ],
   "scripts": {
+    "sync": "bun run scripts/sync-ecc.ts",
     "typecheck": "bun check"
   },
   "devDependencies": {

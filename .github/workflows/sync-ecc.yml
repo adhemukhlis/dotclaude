@@ -1,0 +1,50 @@
+name: Sync ECC
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: ecc-universal version to vendor (default latest)
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: oven-sh/setup-bun@v2.2.0
+
+      - name: Resolve versions
+        id: versions
+        run: |
+          latest="${{ inputs.version }}"
+          [ -n "$latest" ] || latest="$(npm view ecc-universal version)"
+          current="$(bun -e 'console.log((await Bun.file("dotclaude.config.json").json()).ecc.version)')"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+
+      - name: Vendor ECC
+        if: steps.versions.outputs.latest != steps.versions.outputs.current
+        run: |
+          bun install --frozen-lockfile
+          bun run sync --version "${{ steps.versions.outputs.latest }}"
+          bun -e 'const p = await Bun.file("package.json").json(); const [a, b] = p.version.split("."); p.version = `${a}.${Number(b) + 1}.0`; await Bun.write("package.json", JSON.stringify(p, null, 2) + "\n")'
+          bun run index.ts .
+          bun run typecheck
+
+      - uses: peter-evans/create-pull-request@v8.1.1
+        if: steps.versions.outputs.latest != steps.versions.outputs.current
+        with:
+          branch: sync/ecc-${{ steps.versions.outputs.latest }}
+          commit-message: "chore: vendor ECC ${{ steps.versions.outputs.latest }}"
+          title: "chore: vendor ECC ${{ steps.versions.outputs.latest }}"
+          body: |
+            Vendors ECC ${{ steps.versions.outputs.latest }} (was ${{ steps.versions.outputs.current }}) into `vendor/ecc` and refreshes this repo's own `.claude`.
+
+            Review the hook changes in `vendor/ecc/hooks.json` before merging, then tag the release so repos can pin it.

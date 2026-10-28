@@ -1,0 +1,7 @@
+{
+  "ecc": {
+    "version": "2.2.3",
+    "profile": "developer",
+    "hookProfile": "strict"
+  }
+}
